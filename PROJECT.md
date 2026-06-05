@@ -39,12 +39,12 @@ Gitリポジトリは初期化されています。
 ```text
 Git: あり
 GitHub remote: https://github.com/sosakubito-cyber/lecture-transcription-pipeline
-現在の状態: GitHub private repository として運用予定。
+現在の状態: GitHub private repository として運用中。
 ```
 
 ## GitHub repositoryの有無
 
-個人用GitHub private repositoryとして運用予定です。
+個人用GitHub private repositoryとして運用中です。
 
 ```text
 GitHub repository: https://github.com/sosakubito-cyber/lecture-transcription-pipeline
@@ -147,7 +147,7 @@ GitHubへ移す前に必要な対策:
 ```text
 Project: 音声書き写しプロジェクト
 Type: Personal / research workflow
-GitHub owner: 未定
+GitHub owner: sosakubito-cyber
 Repository: https://github.com/sosakubito-cyber/lecture-transcription-pipeline
 Local path: ~/Documents/音声書き写しプロジェクト
 Status: Active / private
