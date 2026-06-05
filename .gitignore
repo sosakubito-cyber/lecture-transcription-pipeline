@@ -1,0 +1,47 @@
+# macOS
+.DS_Store
+
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*credential*.json
+*credentials*.json
+*service_account*.json
+*service-account*.json
+*secret*.json
+gemini_api*
+
+# Python
+__pycache__/
+*.py[cod]
+.python-version
+.venv/
+venv/
+env/
+
+# Raw audio and converted media
+*.mp3
+*.m4a
+*.wav
+*.mp4
+*.mov
+audio/
+
+# Generated transcription outputs and work directories
+high_accuracy_runs/
+outputs/
+*.txt
+*.srt
+*.json
+!requirements_high_accuracy.txt
+
+# Legacy local scripts kept only for reference
+scripts/legacy/
+
+# Large local experiment artifacts
+*.jsonl
+*.log

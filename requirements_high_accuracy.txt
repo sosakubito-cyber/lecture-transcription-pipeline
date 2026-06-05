@@ -1,0 +1,4 @@
+faster-whisper>=1.2.1
+numpy>=1.23
+google-cloud-speech>=2.33.0
+google-cloud-storage>=2.19.0
