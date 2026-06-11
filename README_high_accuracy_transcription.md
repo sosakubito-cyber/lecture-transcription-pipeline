@@ -45,6 +45,7 @@ APIアップロード制限に合わせて、音声は16kHz mono WAVの10分程�
 ## 3. Deepgram Nova-3で比較する
 
 Deepgram APIキーは `DEEPGRAM_API_KEY` 環境変数、または `--api-key-file` で指定します。既定では `~/Desktop/Deepgram-apy-key.txt` を探します。
+人口経済学の専門語は、既定でDeepgram Nova-3の `keyterm` として送信します。追加したい用語がある場合は `--keyterm "用語"` を複数回指定できます。
 
 ```bash
 python3 high_accuracy_transcribe.py deepgram \
@@ -52,7 +53,8 @@ python3 high_accuracy_transcribe.py deepgram \
   --samples-dir high_accuracy_runs/samples \
   --output-prefix high_accuracy_runs/deepgram/deepgram_nova3_samples \
   --model nova-3 \
-  --language ja
+  --language ja \
+  --keyterm "人口経済学"
 ```
 
 全文処理:

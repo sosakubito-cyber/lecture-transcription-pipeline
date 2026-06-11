@@ -382,13 +382,15 @@ def deepgram_transcribe_file(
     language: str,
     smart_format: bool,
     punctuate: bool,
+    keyterms: list[str],
 ) -> dict[str, Any]:
-    params = {
-        "model": model,
-        "language": language,
-        "smart_format": str(smart_format).lower(),
-        "punctuate": str(punctuate).lower(),
-    }
+    params = [
+        ("model", model),
+        ("language", language),
+        ("smart_format", str(smart_format).lower()),
+        ("punctuate", str(punctuate).lower()),
+    ]
+    params.extend(("keyterm", term) for term in keyterms if term.strip())
     url = "https://api.deepgram.com/v1/listen?" + urllib.parse.urlencode(params)
     request = urllib.request.Request(
         url,
@@ -582,6 +584,8 @@ def command_gemini(args: argparse.Namespace) -> None:
 def command_deepgram(args: argparse.Namespace) -> None:
     api_key = load_deepgram_api_key(args.api_key_file)
     print("Deepgram API key loaded (redacted).")
+    keyterms = [] if args.no_default_keyterms else list(DEFAULT_TERMS)
+    keyterms.extend(args.keyterm or [])
 
     work_dir = args.output_prefix.parent / f"{args.output_prefix.name}_work"
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -598,6 +602,7 @@ def command_deepgram(args: argparse.Namespace) -> None:
             language=args.language,
             smart_format=args.smart_format,
             punctuate=args.punctuate,
+            keyterms=keyterms,
         )
         alternative = deepgram_extract_alternative(data)
         text = str(alternative.get("transcript") or "").strip()
@@ -624,6 +629,7 @@ def command_deepgram(args: argparse.Namespace) -> None:
         "backend": "deepgram",
         "model": args.model,
         "language": args.language,
+        "keyterms": keyterms,
         "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "elapsed_seconds": time.time() - started,
         "chunks": chunks,
@@ -1079,6 +1085,8 @@ def build_parser() -> argparse.ArgumentParser:
     deepgram.add_argument("--api-key-file", type=Path, default=DEFAULT_DEEPGRAM_KEY_FILE)
     deepgram.add_argument("--smart-format", action=argparse.BooleanOptionalAction, default=True)
     deepgram.add_argument("--punctuate", action=argparse.BooleanOptionalAction, default=True)
+    deepgram.add_argument("--keyterm", action="append", default=[])
+    deepgram.add_argument("--no-default-keyterms", action="store_true")
     deepgram.set_defaults(func=command_deepgram, chunk_seconds=540.0)
 
     report = sub.add_parser("report", help="Create a comparison report from output JSON files.")
