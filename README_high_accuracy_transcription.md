@@ -3,6 +3,7 @@
 このプロジェクトでは、90分講義音声を以下の3系統で比較できます。
 
 - OpenAI `gpt-4o-transcribe` + 用語プロンプト + 任意のLLM後処理
+- Deepgram `nova-3`
 - RTX 5090などのCUDA GPU上の `faster-whisper`
 - Google Cloud Speech-to-Text V2 `chirp_3`
 
@@ -41,7 +42,30 @@ python3 high_accuracy_transcribe.py openai \
 
 APIアップロード制限に合わせて、音声は16kHz mono WAVの10分程度のチャンクに自動分割されます。
 
-## 3. RTX 5090でローカル比較する
+## 3. Deepgram Nova-3で比較する
+
+Deepgram APIキーは `DEEPGRAM_API_KEY` 環境変数、または `--api-key-file` で指定します。既定では `~/Desktop/Deepgram-apy-key.txt` を探します。
+
+```bash
+python3 high_accuracy_transcribe.py deepgram \
+  --input-mode samples \
+  --samples-dir high_accuracy_runs/samples \
+  --output-prefix high_accuracy_runs/deepgram/deepgram_nova3_samples \
+  --model nova-3 \
+  --language ja
+```
+
+全文処理:
+
+```bash
+python3 high_accuracy_transcribe.py deepgram \
+  --input-mode full \
+  --output-prefix high_accuracy_runs/deepgram/deepgram_nova3_full \
+  --model nova-3 \
+  --language ja
+```
+
+## 4. RTX 5090でローカル比較する
 
 RTX 5090のWindows/Linux側でこのフォルダをコピーし、CUDA対応環境で実行します。
 
@@ -70,7 +94,7 @@ python3 high_accuracy_transcribe.py local \
   --beam-size 5
 ```
 
-## 4. Google Cloud Speech-to-Text `chirp_3`で比較する
+## 5. Google Cloud Speech-to-Text `chirp_3`で比較する
 
 Google Cloud側でSpeech-to-Text APIとCloud Storageを有効化し、Application Default Credentialsを設定します。
 
@@ -89,12 +113,13 @@ python3 high_accuracy_transcribe.py google \
   --dynamic-batch
 ```
 
-## 5. 比較レポートを作る
+## 6. 比較レポートを作る
 
 ```bash
 python3 high_accuracy_transcribe.py report \
   --jsons \
     high_accuracy_runs/openai_gpt4o_samples.json \
+    high_accuracy_runs/deepgram/deepgram_nova3_samples.json \
     high_accuracy_runs/local/local_large_v3_samples.json \
     high_accuracy_runs/google/google_chirp3_samples.json \
   --output high_accuracy_runs/reports/comparison_report.md

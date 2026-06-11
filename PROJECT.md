@@ -7,6 +7,7 @@
 主な比較対象:
 
 - OpenAI `gpt-4o-transcribe`
+- Deepgram `nova-3`
 - Google Cloud Speech-to-Text V2 `chirp_3` + Dynamic Batch
 - Gemini API 音声入力
 - ローカル Whisper / MLX / faster-whisper
@@ -22,6 +23,7 @@
 主要ディレクトリ:
 
 - `high_accuracy_runs/google/`: Google Chirp 3 Dynamic Batch の出力
+- `high_accuracy_runs/deepgram/`: Deepgram Nova-3 の出力
 - `high_accuracy_runs/openai/`: OpenAI API の出力
 - `high_accuracy_runs/gemini/`: Gemini API の出力
 - `high_accuracy_runs/reports/`: 比較レポート
@@ -89,6 +91,17 @@ python3 high_accuracy_transcribe.py openai \
 
 APIキーの値はファイルやドキュメントに保存しないでください。
 
+Deepgram Nova-3 の例:
+
+```bash
+python3 high_accuracy_transcribe.py deepgram \
+  --audio "/path/to/audio.mp3" \
+  --input-mode full \
+  --output-prefix high_accuracy_runs/deepgram/deepgram_nova3_next_full \
+  --model nova-3 \
+  --language ja
+```
+
 ## 確認方法
 
 基本確認:
@@ -124,7 +137,7 @@ python3 high_accuracy_transcribe.py report \
 確認済みリスク:
 
 - Google CloudのサービスアカウントJSONはプロジェクト外に置く運用。
-- OpenAI / Gemini APIキーは環境変数または外部ファイルから読む設計。
+- OpenAI / Gemini / Deepgram APIキーは環境変数または外部ファイルから読む設計。
 - ドキュメントにはAPIキーのプレースホルダがあるが、実キーではない。
 - `high_accuracy_transcribe.py` にはAPIキーを検出するための文字列パターンがあるが、実キーは含まれていない。
 - 出力JSONには音声内容の書き起こし本文が含まれるため、講義内容の扱いに注意が必要。
@@ -139,6 +152,7 @@ GitHubへ移す前に必要な対策:
 - Cloud Storage上に残る一時WAVの削除方針決定
 - 第8回Chirp 3出力の目視精度確認
 - 必要なら第8回をOpenAIでも比較実行
+- Deepgram Nova-3で代表サンプルを実行し、Chirp 3 / OpenAI と比較
 - Google Chirp 3の詳細タイムスタンプ取得可否の追加検証
 - 生成済み成果物は引き続きローカル専用として管理する
 

@@ -14,6 +14,8 @@
 *service-account*.json
 *secret*.json
 gemini_api*
+Deepgram-apy-key*
+deepgram_api*
 
 # Python
 __pycache__/

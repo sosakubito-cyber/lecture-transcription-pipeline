@@ -19,6 +19,7 @@ python3 -m pip install -r requirements_high_accuracy.txt
 ## Providers
 
 - OpenAI `gpt-4o-transcribe`
+- Deepgram `nova-3`
 - Google Cloud Speech-to-Text V2 `chirp_3` + Dynamic Batch
 - Gemini API audio input
 - Local Whisper / MLX / faster-whisper

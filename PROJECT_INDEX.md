@@ -18,6 +18,16 @@
 
 第8回、約98.6分の音声を `chirp_3` + Dynamic Batch で処理した出力です。
 
+### Deepgram Nova-3
+
+今後の比較候補として `deepgram` サブコマンドを追加済みです。
+
+出力先の推奨:
+
+- `high_accuracy_runs/deepgram/deepgram_nova3_samples.txt`
+- `high_accuracy_runs/deepgram/deepgram_nova3_samples.srt`
+- `high_accuracy_runs/deepgram/deepgram_nova3_samples.json`
+
 ### OpenAI gpt-4o-transcribe
 
 - `high_accuracy_runs/openai/openai_gpt4o_full.txt`
@@ -51,6 +61,7 @@ Macローカルで処理した比較用出力です。
 ## ディレクトリ構成
 
 - `high_accuracy_runs/google/`: Google Speech-to-Text / Chirp 3 の出力と作業ファイル
+- `high_accuracy_runs/deepgram/`: Deepgram Nova-3 の出力と作業ファイル
 - `high_accuracy_runs/openai/`: OpenAI API の出力と作業ファイル
 - `high_accuracy_runs/gemini/`: Gemini API の出力と作業ファイル
 - `high_accuracy_runs/reports/`: 比較レポート

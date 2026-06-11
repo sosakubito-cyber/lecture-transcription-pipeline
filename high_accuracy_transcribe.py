@@ -10,14 +10,12 @@ import re
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 import wave
 from pathlib import Path
 from typing import Any, Iterable
-
-import numpy as np
-from faster_whisper.audio import decode_audio
 
 
 DEFAULT_AUDIO = (
@@ -68,6 +66,7 @@ DEFAULT_PROMPT = (
 )
 
 DEFAULT_GEMINI_KEY_PDF = Path.home() / "Desktop" / "gemini_api.pdf"
+DEFAULT_DEEPGRAM_KEY_FILE = Path.home() / "Desktop" / "Deepgram-apy-key.txt"
 POSTPROCESS_SYSTEM_PROMPT = """\
 あなたは日本語の大学講義書き起こしを校正する専門家です。
 音声認識の結果だけを根拠に、誤字、句読点、表記ゆれ、明らかな専門語の誤変換を修正してください。
@@ -108,10 +107,15 @@ def safe_name(name: str) -> str:
 
 
 def decode_audio_16k(path: Path) -> np.ndarray:
+    import numpy as np
+    from faster_whisper.audio import decode_audio
+
     return decode_audio(str(path), sampling_rate=SAMPLE_RATE).astype(np.float32)
 
 
 def write_wav(path: Path, audio: np.ndarray, sample_rate: int = SAMPLE_RATE) -> None:
+    import numpy as np
+
     path.parent.mkdir(parents=True, exist_ok=True)
     pcm = np.clip(audio, -1.0, 1.0)
     pcm16 = (pcm * 32767.0).astype("<i2")
@@ -133,6 +137,8 @@ def find_quiet_boundary(
     search_radius_seconds: float = 15.0,
     frame_ms: float = 50.0,
 ) -> int:
+    import numpy as np
+
     radius = int(search_radius_seconds * SAMPLE_RATE)
     frame = max(1, int(frame_ms * SAMPLE_RATE / 1000))
     lo = max(frame, target_sample - radius)
@@ -351,6 +357,116 @@ def load_gemini_api_key(pdf_path: Path | None) -> str:
     )
 
 
+def load_deepgram_api_key(key_path: Path | None) -> str:
+    key = os.getenv("DEEPGRAM_API_KEY")
+    if key:
+        return key.strip()
+    env_key_path = os.getenv("DEEPGRAM_API_KEY_FILE")
+    if env_key_path:
+        key_path = Path(env_key_path).expanduser()
+    if key_path and key_path.exists():
+        for line in key_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                return line
+    raise SystemExit(
+        "Deepgram API key not found. Set DEEPGRAM_API_KEY or pass --api-key-file."
+    )
+
+
+def deepgram_transcribe_file(
+    path: Path,
+    *,
+    api_key: str,
+    model: str,
+    language: str,
+    smart_format: bool,
+    punctuate: bool,
+) -> dict[str, Any]:
+    params = {
+        "model": model,
+        "language": language,
+        "smart_format": str(smart_format).lower(),
+        "punctuate": str(punctuate).lower(),
+    }
+    url = "https://api.deepgram.com/v1/listen?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(
+        url,
+        data=path.read_bytes(),
+        method="POST",
+        headers={
+            "Authorization": f"Token {api_key}",
+            "Content-Type": "audio/wav",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=900) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Deepgram API request failed: HTTP {exc.code}: {detail}") from exc
+
+
+def deepgram_extract_alternative(data: dict[str, Any]) -> dict[str, Any]:
+    channels = data.get("results", {}).get("channels") or []
+    if not channels:
+        return {}
+    alternatives = channels[0].get("alternatives") or []
+    return alternatives[0] if alternatives else {}
+
+
+def segments_from_deepgram_words(
+    words: list[dict[str, Any]],
+    *,
+    chunk_start: float,
+    chunk_end: float,
+    fallback_text: str,
+    joiner: str = " ",
+    max_segment_seconds: float = 20.0,
+) -> list[dict[str, Any]]:
+    if not words:
+        text = fallback_text.strip()
+        return [{"start": chunk_start, "end": chunk_end, "text": text}] if text else []
+
+    segments = []
+    current_words: list[str] = []
+    current_start: float | None = None
+    current_end = chunk_start
+
+    for word in words:
+        token = str(word.get("punctuated_word") or word.get("word") or "").strip()
+        if not token:
+            continue
+        start = chunk_start + float(word.get("start") or 0.0)
+        end = chunk_start + float(word.get("end") or word.get("start") or 0.0)
+        if current_start is None:
+            current_start = start
+        current_words.append(token)
+        current_end = max(end, current_end)
+        duration = current_end - current_start
+        sentence_end = token.endswith((".", "?", "!", "。", "？", "！"))
+        if sentence_end or duration >= max_segment_seconds or len("".join(current_words)) >= 140:
+            segments.append(
+                {
+                    "start": current_start,
+                    "end": max(current_end, current_start + 0.1),
+                    "text": joiner.join(current_words).strip(),
+                }
+            )
+            current_words = []
+            current_start = None
+
+    if current_words and current_start is not None:
+        segments.append(
+            {
+                "start": current_start,
+                "end": max(current_end, current_start + 0.1),
+                "text": joiner.join(current_words).strip(),
+            }
+        )
+    return segments
+
+
 def gemini_generate_audio_text(
     path: Path,
     *,
@@ -458,6 +574,58 @@ def command_gemini(args: argparse.Namespace) -> None:
         "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "elapsed_seconds": time.time() - started,
         "prompt": args.prompt,
+        "chunks": chunks,
+    }
+    write_outputs(args.output_prefix, result)
+
+
+def command_deepgram(args: argparse.Namespace) -> None:
+    api_key = load_deepgram_api_key(args.api_key_file)
+    print("Deepgram API key loaded (redacted).")
+
+    work_dir = args.output_prefix.parent / f"{args.output_prefix.name}_work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    inputs = audio_inputs(args, work_dir)
+    chunks = []
+    started = time.time()
+
+    for item in inputs:
+        print(f"Deepgram {args.model}: {item['name']} {fmt_ts(item['start'])}-{fmt_ts(item['end'])}")
+        data = deepgram_transcribe_file(
+            item["path"],
+            api_key=api_key,
+            model=args.model,
+            language=args.language,
+            smart_format=args.smart_format,
+            punctuate=args.punctuate,
+        )
+        alternative = deepgram_extract_alternative(data)
+        text = str(alternative.get("transcript") or "").strip()
+        words = alternative.get("words") or []
+        segments = segments_from_deepgram_words(
+            words,
+            chunk_start=float(item["start"]),
+            chunk_end=float(item["end"]),
+            fallback_text=text,
+            joiner="" if args.language.lower().startswith("ja") else " ",
+        )
+        chunks.append(
+            {
+                **item,
+                "path": str(item["path"]),
+                "text": text,
+                "segments": segments,
+                "raw_response": data,
+                "timestamp_source": "word",
+            }
+        )
+
+    result = {
+        "backend": "deepgram",
+        "model": args.model,
+        "language": args.language,
+        "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "elapsed_seconds": time.time() - started,
         "chunks": chunks,
     }
     write_outputs(args.output_prefix, result)
@@ -903,6 +1071,15 @@ def build_parser() -> argparse.ArgumentParser:
     gemini.add_argument("--prompt", default=DEFAULT_PROMPT)
     gemini.add_argument("--use-previous-context", action="store_true")
     gemini.set_defaults(func=command_gemini, chunk_seconds=300.0)
+
+    deepgram = sub.add_parser("deepgram", help="Transcribe with Deepgram Nova-3.")
+    add_common_input_args(deepgram)
+    deepgram.add_argument("--model", default="nova-3")
+    deepgram.add_argument("--language", default="ja")
+    deepgram.add_argument("--api-key-file", type=Path, default=DEFAULT_DEEPGRAM_KEY_FILE)
+    deepgram.add_argument("--smart-format", action=argparse.BooleanOptionalAction, default=True)
+    deepgram.add_argument("--punctuate", action=argparse.BooleanOptionalAction, default=True)
+    deepgram.set_defaults(func=command_deepgram, chunk_seconds=540.0)
 
     report = sub.add_parser("report", help="Create a comparison report from output JSON files.")
     report.add_argument("--jsons", type=Path, nargs="+", required=True)
