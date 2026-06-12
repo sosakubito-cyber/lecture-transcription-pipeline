@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Python syntax
+        run: python -m py_compile high_accuracy_transcribe.py
+
+      - name: Validate Google credentials JSON secret when present
+        run: |
+          if [ -n "$GOOGLE_APPLICATION_CREDENTIALS_JSON" ]; then
+            python -c 'import json, os; json.loads(os.environ["GOOGLE_APPLICATION_CREDENTIALS_JSON"]); print("GOOGLE_APPLICATION_CREDENTIALS_JSON is configured and valid JSON.")'
+          else
+            echo "GOOGLE_APPLICATION_CREDENTIALS_JSON is not configured; skipping credential JSON validation."
+          fi
+
+      - name: Confirm optional API secrets are wired
+        run: |
+          for name in OPENAI_API_KEY GEMINI_API_KEY DEEPGRAM_API_KEY; do
+            if [ -n "${!name}" ]; then
+              echo "$name is configured for Actions."
+            else
+              echo "$name is not configured for Actions."
+            fi
+          done
