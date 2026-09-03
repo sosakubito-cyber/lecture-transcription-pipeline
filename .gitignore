@@ -36,6 +36,8 @@ audio/
 # Generated transcription outputs and work directories
 high_accuracy_runs/
 outputs/
+/transcripts/
+/private_transcripts/
 *.txt
 *.srt
 *.json
